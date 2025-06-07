@@ -1,9 +1,37 @@
 {
   "expo": {
+    "name": "CogniTrack",
+    "slug": "cognitrack",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cognitrack.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.cognitrack.app"
+    },
     "extra": {
       "eas": {
-        "projectId": "a3914d49-193b-452b-a675-08e2d40cd619"
+        "projectId": "your-project-id"
       }
+    },
+    "cli": {
+      "appVersionSource": "remote"
     },
     "owner": "n07n0w"
   }
