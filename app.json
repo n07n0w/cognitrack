@@ -33,6 +33,7 @@
     "cli": {
       "appVersionSource": "remote"
     },
+    "entryPoint": "./App.tsx",
     "owner": "n07n0w"
   }
 }
