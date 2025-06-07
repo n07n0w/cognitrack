@@ -1,18 +1,11 @@
 import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import { EmotionEntryScreen } from './src/screens/EmotionEntryScreen';
+import { NavigationContainer } from '@react-navigation/native';
+import { BottomTabNavigator } from './src/navigation/BottomTabNavigator';
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.container}>
-      <EmotionEntryScreen />
-    </SafeAreaView>
+    <NavigationContainer>
+      <BottomTabNavigator />
+    </NavigationContainer>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-}); 
+} 
