@@ -1,0 +1,69 @@
+name: Build React Native App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Login to EAS
+        run: eas login --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EAS_TOKEN }}
+
+      - name: Configure EAS
+        run: |
+          eas build:configure
+
+      - name: Build Android APK
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+        env:
+          EAS_BUILD_PROFILE: preview
+
+      - name: Build iOS Simulator
+        run: eas build --platform ios --profile preview --non-interactive --no-wait
+        env:
+          EAS_BUILD_PROFILE: preview
+
+      - name: Download Android build
+        uses: actions/download-artifact@v4
+        with:
+          name: android-build
+          path: ./android-build
+
+      - name: Download iOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-build
+          path: ./ios-build
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ./android-build/*.apk
+
+      - name: Upload iOS Simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator
+          path: ./ios-build/*.app 
