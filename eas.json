@@ -21,7 +21,8 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "buildConfiguration": "Release"
       }
     },
     "preview2": {
@@ -35,6 +36,9 @@
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
       }
     }
   },
