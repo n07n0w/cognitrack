@@ -25,12 +25,7 @@ jobs:
     
     - name: Check and recreate database
       env:
-        DB_USER: ${{ secrets.DB_USER }}
-        DB_HOST: ${{ secrets.DB_HOST }}
-        DB_NAME: ${{ secrets.DB_NAME }}
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        DB_PORT: ${{ secrets.DB_PORT }}
-        DB_SSL: ${{ secrets.DB_SSL }}
+        SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       run: node scripts/check-db.js
     
     - name: Notify on failure

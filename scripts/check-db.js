@@ -2,14 +2,10 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-// Database configuration
+// Database configuration using Supabase connection string
 const dbConfig = {
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT || 5432,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.SUPABASE_DB_URL,
+  ssl: { rejectUnauthorized: false }
 };
 
 async function checkAndRecreateDatabase() {
