@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: macos-latest
+  build-android:
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
@@ -28,16 +28,6 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/CocoaPods
-            ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -68,6 +58,37 @@ jobs:
           GOOGLE_IOS_CLIENT_ID: ${{ secrets.GOOGLE_IOS_CLIENT_ID }}
           GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}
 
+      - name: Download Android build
+        uses: actions/download-artifact@v4
+        with:
+          name: android-build
+          path: ./android-build
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ./android-build/*.apk
+
+  build-ios:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
       - name: Build iOS Simulator
         run: eas build --platform ios --profile preview --non-interactive
         env:
@@ -78,28 +99,4 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           GOOGLE_IOS_CLIENT_ID: ${{ secrets.GOOGLE_IOS_CLIENT_ID }}
-          GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}
-
-      - name: Download Android build
-        uses: actions/download-artifact@v4
-        with:
-          name: android-build
-          path: ./android-build
-
-      - name: Download iOS build
-        uses: actions/download-artifact@v4
-        with:
-          name: ios-build
-          path: ./ios-build
-
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: ./android-build/*.apk
-
-      - name: Upload iOS Simulator build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-simulator
-          path: ./ios-build/*.app 
+          GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.GOOGLE_ANDROID_CLIENT_ID }} 
