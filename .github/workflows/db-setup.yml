@@ -1,0 +1,193 @@
+name: Setup Supabase Database
+
+on:
+  workflow_dispatch: # Manual trigger only
+    inputs:
+      confirm_setup:
+        description: 'Type "confirm" to proceed with database setup'
+        required: true
+        type: string
+      force_recreate:
+        description: 'Force recreate tables (will drop existing data)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  setup-database:
+    runs-on: ubuntu-latest # Free GitHub runner
+    
+    steps:
+      - name: Validate input
+        if: ${{ github.event.inputs.confirm_setup != 'confirm' }}
+        run: |
+          echo "❌ Setup cancelled. Please type 'confirm' to proceed."
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        run: |
+          npm install -g @supabase/supabase-js
+          npm install -g supabase
+
+      - name: Verify Supabase connection
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "🔗 Testing Supabase connection..."
+          node -e "
+            const { createClient } = require('@supabase/supabase-js');
+            const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+            console.log('✅ Supabase client created successfully');
+            console.log('📍 Project URL:', process.env.SUPABASE_URL);
+          "
+
+      - name: Create Supabase setup script
+        run: |
+          cat > setup-supabase.js << 'EOF'
+          const { createClient } = require('@supabase/supabase-js');
+          const fs = require('fs');
+          const path = require('path');
+
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+          const forceRecreate = process.env.FORCE_RECREATE === 'true';
+
+          if (!supabaseUrl || !supabaseAnonKey) {
+            console.error('❌ Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+            process.exit(1);
+          }
+
+          const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+          async function setupDatabase() {
+            try {
+              console.log('🚀 Starting Supabase database setup...');
+              
+              // Read SQL schema
+              const schemaPath = path.join(__dirname, 'src/db/schema.sql');
+              const schema = fs.readFileSync(schemaPath, 'utf8');
+              
+              if (forceRecreate) {
+                console.log('⚠️ Force recreate mode - dropping existing tables...');
+                const dropTables = `
+                  DROP TABLE IF EXISTS gratitude_entries CASCADE;
+                  DROP TABLE IF EXISTS mood_entry_activities CASCADE;
+                  DROP TABLE IF EXISTS mood_entries CASCADE;
+                  DROP TABLE IF EXISTS activities CASCADE;
+                  DROP TABLE IF EXISTS emotions CASCADE;
+                `;
+                
+                const { error: dropError } = await supabase.rpc('exec_sql', { sql: dropTables });
+                if (dropError) {
+                  console.log('Note: Some tables might not exist yet, continuing...');
+                }
+              }
+              
+              // Execute schema
+              console.log('📊 Creating database schema...');
+              const { error: schemaError } = await supabase.rpc('exec_sql', { sql: schema });
+              
+              if (schemaError) {
+                console.error('❌ Schema creation failed:', schemaError);
+                process.exit(1);
+              }
+              
+              console.log('✅ Database schema created successfully');
+              
+              // Check if we need to seed data
+              const { data: emotionsData, error: emotionsError } = await supabase
+                .from('emotions')
+                .select('count');
+                
+              if (!emotionsError && (!emotionsData || emotionsData.length === 0)) {
+                console.log('🌱 Seeding initial data...');
+                
+                // Seed emotions
+                const { EMOTIONS } = require('./src/constants/moodData');
+                const { error: emotionsInsertError } = await supabase
+                  .from('emotions')
+                  .insert(EMOTIONS);
+                  
+                if (emotionsInsertError) {
+                  console.error('❌ Failed to seed emotions:', emotionsInsertError);
+                } else {
+                  console.log('✅ Emotions seeded successfully');
+                }
+                
+                // Seed activities
+                const { ACTIVITIES } = require('./src/constants/moodData');
+                const { error: activitiesInsertError } = await supabase
+                  .from('activities')
+                  .insert(ACTIVITIES);
+                  
+                if (activitiesInsertError) {
+                  console.error('❌ Failed to seed activities:', activitiesInsertError);
+                } else {
+                  console.log('✅ Activities seeded successfully');
+                }
+              } else {
+                console.log('ℹ️ Data already exists, skipping seeding');
+              }
+              
+              console.log('🎉 Database setup completed successfully!');
+              
+            } catch (error) {
+              console.error('❌ Setup failed:', error);
+              process.exit(1);
+            }
+          }
+
+          setupDatabase();
+          EOF
+
+      - name: Setup database schema
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          FORCE_RECREATE: ${{ github.event.inputs.force_recreate }}
+        run: node setup-supabase.js
+
+      - name: Verify setup
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "🔍 Verifying database setup..."
+          node -e "
+            const { createClient } = require('@supabase/supabase-js');
+            const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+            
+            async function verify() {
+              try {
+                const { data: emotions } = await supabase.from('emotions').select('count');
+                const { data: activities } = await supabase.from('activities').select('count');
+                
+                console.log('✅ Database verification successful');
+                console.log('📊 Tables accessible and ready');
+              } catch (error) {
+                console.error('❌ Verification failed:', error);
+                process.exit(1);
+              }
+            }
+            
+            verify();
+          "
+
+      - name: Setup complete
+        run: |
+          echo "🎉 Supabase database setup completed successfully!"
+          echo "📱 Your CogniTrack app is ready to use the database"
+          echo "🔧 To run this again with force recreate, set the force_recreate input to true" 
