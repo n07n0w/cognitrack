@@ -147,7 +147,7 @@ export const ProfileScreen = () => {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>
-              {new Date(authState.user?.createdAt || Date.now()).toLocaleDateString('ru-RU')}
+              {authState.user?.createdAt ? new Date(authState.user.createdAt).toLocaleDateString('ru-RU') : 'Недавно'}
             </Text>
             <Text style={styles.statLabel}>Регистрация</Text>
           </View>
@@ -218,7 +218,7 @@ export const ProfileScreen = () => {
           <Ionicons name="calendar-outline" size={32} color="#2196F3" />
           <Text style={styles.dataStatNumber}>
             {state.entries.length > 0 ? 
-              Math.max(1, Math.ceil((Date.now() - new Date(state.entries[state.entries.length - 1]?.timestamp || Date.now()).getTime()) / (1000 * 60 * 60 * 24))) 
+              Math.max(1, Math.ceil((Date.now() - new Date(state.entries[state.entries.length - 1]?.date || Date.now()).getTime()) / (1000 * 60 * 60 * 24))) 
               : 0
             }
           </Text>

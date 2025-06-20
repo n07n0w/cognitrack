@@ -1,9 +1,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { EmotionEntryScreen } from '../screens/EmotionEntryScreen';
-import { PerformanceScreen } from '../screens/PerformanceScreen';
+import { MaterialIcons } from '@expo/vector-icons';
+import EmotionEntryScreen from '../screens/EmotionEntryScreen';
+import PerformanceScreen from '../screens/PerformanceScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import Colors from '../constants/colors';
 import { RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -13,21 +14,21 @@ export const BottomTabNavigator = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
+          let iconName: keyof typeof MaterialIcons.glyphMap;
 
           if (route.name === 'Today') {
-            iconName = focused ? 'today' : 'today-outline';
+            iconName = focused ? 'edit' : 'edit';
           } else if (route.name === 'Performance') {
-            iconName = focused ? 'stats-chart' : 'stats-chart-outline';
+            iconName = focused ? 'analytics' : 'analytics';
           } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
+            iconName = focused ? 'person' : 'person';
           } else {
-            iconName = 'help-outline';
+            iconName = 'help';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <MaterialIcons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#7C4DFF',
+        tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
         tabBarStyle: {

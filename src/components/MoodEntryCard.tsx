@@ -1,239 +1,205 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+
 import { MoodEntry } from '../types/mood';
+import Colors from '../constants/colors';
+import { Typography, Spacing, BorderRadius } from '../constants/styles';
 
 interface MoodEntryCardProps {
   entry: MoodEntry;
-  onPress?: () => void;
   showDate?: boolean;
 }
 
-export const MoodEntryCard: React.FC<MoodEntryCardProps> = ({ 
-  entry, 
-  onPress,
-  showDate = true 
-}) => {
-  const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+const EMOTIONS_MAP = {
+  joy: { name: 'Радость', color: Colors.emotions.joy, icon: 'sentiment-very-satisfied' },
+  gratitude: { name: 'Благодарность', color: Colors.emotions.gratitude, icon: 'favorite' },
+  peace: { name: 'Спокойствие', color: Colors.emotions.peace, icon: 'spa' },
+  love: { name: 'Любовь', color: Colors.emotions.love, icon: 'favorite-border' },
+  hope: { name: 'Надежда', color: Colors.emotions.hope, icon: 'lightbulb-outline' },
+  anxiety: { name: 'Тревога', color: Colors.emotions.anxiety, icon: 'psychology' },
+  sadness: { name: 'Грусть', color: Colors.emotions.sadness, icon: 'sentiment-dissatisfied' },
+  anger: { name: 'Гнев', color: Colors.emotions.anger, icon: 'sentiment-very-dissatisfied' },
+  fear: { name: 'Страх', color: Colors.emotions.fear, icon: 'warning' },
+};
+
+export function MoodEntryCard({ entry, showDate = false }: MoodEntryCardProps) {
+  const emotion = EMOTIONS_MAP[entry.emotion] || { 
+    name: entry.emotion, 
+    color: Colors.primary, 
+    icon: 'sentiment-neutral' 
   };
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) return 'Сегодня';
+    if (diffDays === 2) return 'Вчера';
+    if (diffDays <= 7) return `${diffDays} дня назад`;
+    
+    return date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
     });
   };
 
   return (
-    <TouchableOpacity 
-      style={[
-        styles.container,
-        { borderLeftColor: entry.emotion.color }
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <View style={styles.container}>
+      {/* Заголовок карточки */}
       <View style={styles.header}>
-        <View style={styles.emotionContainer}>
-          <Text style={styles.emotionEmoji}>{entry.emotion.emoji}</Text>
-          <Text style={styles.emotionLabel}>{entry.emotion.label}</Text>
-        </View>
-        
-        <View style={styles.metaContainer}>
-          {showDate && (
-            <Text style={styles.dateText}>{formatDate(entry.timestamp)}</Text>
-          )}
-          <View style={styles.intensityContainer}>
-            <Text style={styles.intensityText}>{entry.intensity}/10</Text>
-            <View style={styles.intensityBar}>
-              <View 
-                style={[
-                  styles.intensityFill,
-                  { 
-                    width: `${(entry.intensity / 10) * 100}%`,
-                    backgroundColor: entry.emotion.color 
-                  }
-                ]} 
-              />
-            </View>
+        <View style={styles.emotionSection}>
+          <View style={[styles.emotionIcon, { backgroundColor: emotion.color + '20' }]}>
+            <MaterialIcons 
+              name={emotion.icon as any} 
+              size={20} 
+              color={emotion.color} 
+            />
+          </View>
+          <View style={styles.emotionInfo}>
+            <Text style={[Typography.bodyMedium, styles.emotionName]}>
+              {emotion.name}
+            </Text>
+            <Text style={[Typography.bodySmall, styles.intensity]}>
+              Интенсивность: {entry.intensity}/10
+            </Text>
           </View>
         </View>
+        
+        {showDate && (
+          <Text style={[Typography.bodySmall, styles.date]}>
+            {formatDate(entry.date)}
+          </Text>
+        )}
       </View>
 
-      {entry.journalText ? (
-        <Text style={styles.journalText} numberOfLines={2}>
-          {entry.journalText}
+      {/* Заметка */}
+      {entry.note && (
+        <Text style={[Typography.bodyMedium, styles.note]} numberOfLines={3}>
+          {entry.note}
         </Text>
-      ) : null}
+      )}
 
+      {/* Активности */}
       {entry.activities.length > 0 && (
-        <View style={styles.activitiesContainer}>
-          {entry.activities.slice(0, 3).map(activity => (
-            <View key={activity.id} style={styles.activityTag}>
-              <Text style={styles.activityIcon}>{activity.icon}</Text>
-              <Text style={styles.activityName}>{activity.name}</Text>
-            </View>
-          ))}
-          {entry.activities.length > 3 && (
-            <Text style={styles.moreActivities}>
-              +{entry.activities.length - 3} more
-            </Text>
-          )}
+        <View style={styles.activitiesSection}>
+          <Text style={[Typography.bodySmall, styles.activitiesLabel]}>
+            Активности:
+          </Text>
+          <View style={styles.activitiesList}>
+            {entry.activities.map((activity, index) => (
+              <View key={index} style={styles.activityTag}>
+                <Text style={styles.activityText}>{activity}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
-      {entry.gratitude.length > 0 && (
-        <View style={styles.gratitudeContainer}>
-          <Ionicons name="heart" size={12} color="#E91E63" />
-          <Text style={styles.gratitudeText}>
-            {entry.gratitude.length} gratitude{entry.gratitude.length !== 1 ? 's' : ''}
+      {/* Благодарность */}
+      {entry.gratitude && (
+        <View style={styles.gratitudeSection}>
+          <MaterialIcons name="favorite" size={16} color={Colors.emotions.gratitude} />
+          <Text style={[Typography.bodyMedium, styles.gratitudeText]} numberOfLines={2}>
+            {entry.gratitude}
           </Text>
         </View>
       )}
-
-      <View style={styles.footer}>
-        <Text style={styles.timeText}>{formatTime(entry.timestamp)}</Text>
-        {entry.isPrivate && (
-          <View style={styles.privateIndicator}>
-            <Ionicons name="lock-closed" size={12} color="#666" />
-            <Text style={styles.privateText}>Private</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
+    backgroundColor: Colors.backgroundCard,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    shadowColor: Colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: Spacing.md,
   },
-  emotionContainer: {
+  emotionSection: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  emotionEmoji: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  emotionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  metaContainer: {
-    alignItems: 'flex-end',
-  },
-  dateText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  intensityContainer: {
-    alignItems: 'flex-end',
-  },
-  intensityText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
-  },
-  intensityBar: {
+  emotionIcon: {
     width: 40,
-    height: 4,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 2,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
   },
-  intensityFill: {
-    height: '100%',
-    borderRadius: 2,
+  emotionInfo: {
+    flex: 1,
   },
-  journalText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+  emotionName: {
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  intensity: {
+    color: Colors.textSecondary,
+  },
+  date: {
+    color: Colors.textLight,
+    marginLeft: Spacing.md,
+  },
+  note: {
+    color: Colors.textSecondary,
     lineHeight: 20,
+    marginBottom: Spacing.md,
   },
-  activitiesContainer: {
+  activitiesSection: {
+    marginBottom: Spacing.md,
+  },
+  activitiesLabel: {
+    color: Colors.textLight,
+    marginBottom: Spacing.xs,
+  },
+  activitiesList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 8,
+    gap: Spacing.xs,
   },
   activityTag: {
+    backgroundColor: Colors.backgroundSoft,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  activityText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  gratitudeSection: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  activityIcon: {
-    fontSize: 12,
-    marginRight: 4,
-  },
-  activityName: {
-    fontSize: 12,
-    color: '#666',
-  },
-  moreActivities: {
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  gratitudeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    backgroundColor: Colors.therapy.care,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
   },
   gratitudeText: {
-    fontSize: 12,
-    color: '#E91E63',
-    marginLeft: 4,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  timeText: {
-    fontSize: 12,
-    color: '#999',
-  },
-  privateIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  privateText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
+    flex: 1,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
 }); 
