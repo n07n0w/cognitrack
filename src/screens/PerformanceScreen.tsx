@@ -1,456 +1,465 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity,
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
   Dimensions,
-  RefreshControl,
+  Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useMood } from '../context/MoodContext';
-import { MoodEntry } from '../types/mood';
+import Colors from '../constants/colors';
+import { CommonStyles, Typography, Spacing, BorderRadius } from '../constants/styles';
 
 const { width } = Dimensions.get('window');
 
 type TimeRange = 'week' | 'month' | 'year';
 
-export const PerformanceScreen = () => {
+const EMOTIONS_MAP = {
+  joy: { name: 'Радость', color: Colors.emotions.joy, icon: 'sentiment-very-satisfied' },
+  gratitude: { name: 'Благодарность', color: Colors.emotions.gratitude, icon: 'favorite' },
+  peace: { name: 'Спокойствие', color: Colors.emotions.peace, icon: 'spa' },
+  love: { name: 'Любовь', color: Colors.emotions.love, icon: 'favorite-border' },
+  hope: { name: 'Надежда', color: Colors.emotions.hope, icon: 'lightbulb-outline' },
+  anxiety: { name: 'Тревога', color: Colors.emotions.anxiety, icon: 'psychology' },
+  sadness: { name: 'Грусть', color: Colors.emotions.sadness, icon: 'sentiment-dissatisfied' },
+  anger: { name: 'Гнев', color: Colors.emotions.anger, icon: 'sentiment-very-dissatisfied' },
+  fear: { name: 'Страх', color: Colors.emotions.fear, icon: 'warning' },
+};
+
+interface StatCard {
+  title: string;
+  value: string;
+  subtitle?: string;
+  color: string;
+  icon: string;
+}
+
+export default function PerformanceScreen() {
   const { state } = useMood();
   const [selectedRange, setSelectedRange] = useState<TimeRange>('week');
-  const [refreshing, setRefreshing] = useState(false);
+  const fadeAnimation = new Animated.Value(1);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    // Simulate refresh delay
-    setTimeout(() => setRefreshing(false), 1000);
-  };
-
+  // Фильтрация записей по выбранному периоду
   const filteredEntries = useMemo(() => {
     const now = new Date();
-    const dateThreshold = new Date();
+    const cutoff = new Date();
     
     switch (selectedRange) {
       case 'week':
-        dateThreshold.setDate(now.getDate() - 7);
+        cutoff.setDate(now.getDate() - 7);
         break;
       case 'month':
-        dateThreshold.setMonth(now.getMonth() - 1);
+        cutoff.setDate(now.getDate() - 30);
         break;
       case 'year':
-        dateThreshold.setFullYear(now.getFullYear() - 1);
+        cutoff.setFullYear(now.getFullYear() - 1);
         break;
     }
-
-    return state.entries.filter(entry => 
-      new Date(entry.timestamp) >= dateThreshold
-    );
+    
+    return state.entries.filter(entry => new Date(entry.date) >= cutoff);
   }, [state.entries, selectedRange]);
 
-  const analytics = useMemo(() => {
+  // Вычисление статистики
+  const stats = useMemo(() => {
     if (filteredEntries.length === 0) {
       return {
-        averageMood: 0,
+        averageIntensity: 0,
         totalEntries: 0,
-        streakDays: 0,
-        topEmotion: null,
-        topActivity: null,
+        mostCommonEmotion: null,
         moodTrend: 'stable',
-        completionRate: 0,
+        topActivities: [],
       };
     }
 
-    const averageMood = filteredEntries.reduce((sum, entry) => sum + entry.intensity, 0) / filteredEntries.length;
+    const averageIntensity = filteredEntries.reduce((sum, entry) => sum + entry.intensity, 0) / filteredEntries.length;
     
-    // Calculate streak (simplified)
-    const streakDays = Math.min(filteredEntries.length, 7);
-    
-    // Find most common emotion
+    // Подсчет эмоций
     const emotionCounts = filteredEntries.reduce((acc, entry) => {
-      acc[entry.emotion.id] = (acc[entry.emotion.id] || 0) + 1;
+      acc[entry.emotion] = (acc[entry.emotion] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
-    const topEmotionId = Object.keys(emotionCounts).reduce((a, b) => 
-      emotionCounts[a] > emotionCounts[b] ? a : b
-    );
-    const topEmotion = filteredEntries.find(entry => entry.emotion.id === topEmotionId)?.emotion;
-    
-    // Find most common activity
+
+    const mostCommonEmotion = Object.entries(emotionCounts)
+      .sort(([,a], [,b]) => b - a)[0]?.[0] || null;
+
+    // Подсчет активностей
     const activityCounts = filteredEntries.reduce((acc, entry) => {
       entry.activities.forEach(activity => {
-        acc[activity.id] = (acc[activity.id] || 0) + 1;
+        acc[activity] = (acc[activity] || 0) + 1;
       });
       return acc;
     }, {} as Record<string, number>);
-    
-    const topActivityId = Object.keys(activityCounts).length > 0 
-      ? Object.keys(activityCounts).reduce((a, b) => 
-          activityCounts[a] > activityCounts[b] ? a : b
-        )
-      : null;
-    
-    const topActivity = topActivityId 
-      ? filteredEntries.find(entry => 
-          entry.activities.find(activity => activity.id === topActivityId)
-        )?.activities.find(activity => activity.id === topActivityId)
-      : null;
 
-    // Calculate mood trend (simplified)
-    const recentEntries = filteredEntries.slice(0, 3);
-    const olderEntries = filteredEntries.slice(3, 6);
-    
-    const recentAvg = recentEntries.length > 0 
-      ? recentEntries.reduce((sum, entry) => sum + entry.intensity, 0) / recentEntries.length
-      : averageMood;
-    
-    const olderAvg = olderEntries.length > 0 
-      ? olderEntries.reduce((sum, entry) => sum + entry.intensity, 0) / olderEntries.length
-      : averageMood;
-    
-    let moodTrend = 'stable';
-    if (recentAvg > olderAvg + 0.5) moodTrend = 'improving';
-    else if (recentAvg < olderAvg - 0.5) moodTrend = 'declining';
-
-    // Calculate completion rate based on expected daily entries
-    const expectedEntries = selectedRange === 'week' ? 7 : selectedRange === 'month' ? 30 : 365;
-    const completionRate = Math.min((filteredEntries.length / expectedEntries) * 100, 100);
+    const topActivities = Object.entries(activityCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([activity, count]) => ({ activity, count }));
 
     return {
-      averageMood: Math.round(averageMood * 10) / 10,
+      averageIntensity,
       totalEntries: filteredEntries.length,
-      streakDays,
-      topEmotion,
-      topActivity,
-      moodTrend,
-      completionRate: Math.round(completionRate),
+      mostCommonEmotion,
+      moodTrend: averageIntensity > 6 ? 'positive' : averageIntensity < 4 ? 'needs_attention' : 'stable',
+      topActivities,
     };
-  }, [filteredEntries, selectedRange]);
+  }, [filteredEntries]);
 
-  const TimeRangeSelector = () => (
-    <View style={styles.timeRangeContainer}>
-      {(['week', 'month', 'year'] as TimeRange[]).map(range => (
-        <TouchableOpacity
-          key={range}
-          style={[
-            styles.timeRangeButton,
-            selectedRange === range && styles.timeRangeButtonActive
-          ]}
-          onPress={() => setSelectedRange(range)}
-        >
-          <Text style={[
-            styles.timeRangeText,
-            selectedRange === range && styles.timeRangeTextActive
-          ]}>
-            {range.charAt(0).toUpperCase() + range.slice(1)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  const generateStatCards = (): StatCard[] => {
+    const cards: StatCard[] = [
+      {
+        title: 'Записей',
+        value: stats.totalEntries.toString(),
+        subtitle: `за ${selectedRange === 'week' ? 'неделю' : selectedRange === 'month' ? 'месяц' : 'год'}`,
+        color: Colors.primary,
+        icon: 'event-note',
+      },
+      {
+        title: 'Средняя интенсивность',
+        value: stats.averageIntensity.toFixed(1),
+        subtitle: 'из 10',
+        color: stats.moodTrend === 'positive' ? Colors.success : stats.moodTrend === 'needs_attention' ? Colors.warning : Colors.info,
+        icon: 'trending-up',
+      },
+    ];
 
-  const StatCard = ({ title, value, subtitle, icon, color = '#7C4DFF' }: {
-    title: string;
-    value: string | number | React.ReactNode;
-    subtitle?: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    color?: string;
-  }) => (
-    <View style={styles.statCard}>
-      <View style={styles.statHeader}>
-        <Ionicons name={icon} size={24} color={color} />
-        <Text style={styles.statTitle}>{title}</Text>
-      </View>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
-    </View>
-  );
+    if (stats.mostCommonEmotion && EMOTIONS_MAP[stats.mostCommonEmotion]) {
+      cards.push({
+        title: 'Частая эмоция',
+        value: EMOTIONS_MAP[stats.mostCommonEmotion].name,
+        color: EMOTIONS_MAP[stats.mostCommonEmotion].color,
+        icon: EMOTIONS_MAP[stats.mostCommonEmotion].icon,
+      });
+    }
 
-  const MoodTrendIndicator = () => {
-    const { moodTrend } = analytics;
-    const getIcon = (): keyof typeof Ionicons.glyphMap => {
-      switch (moodTrend) {
-        case 'improving': return 'trending-up';
-        case 'declining': return 'trending-down';
-        default: return 'remove';
-      }
-    };
-    
-    const getColor = () => {
-      switch (moodTrend) {
-        case 'improving': return '#4CAF50';
-        case 'declining': return '#F44336';
-        default: return '#FF9800';
-      }
-    };
-
-    return (
-      <View style={styles.trendContainer}>
-        <Ionicons name={getIcon()} size={20} color={getColor()} />
-        <Text style={[styles.trendText, { color: getColor() }]}>
-          {moodTrend.charAt(0).toUpperCase() + moodTrend.slice(1)}
-        </Text>
-      </View>
-    );
+    return cards;
   };
 
+  const getMoodTrendMessage = () => {
+    if (stats.totalEntries === 0) {
+      return {
+        message: 'Начните записывать свои эмоции, чтобы увидеть статистику',
+        color: Colors.textSecondary,
+        icon: 'psychology',
+      };
+    }
+
+    switch (stats.moodTrend) {
+      case 'positive':
+        return {
+          message: 'Вы на правильном пути! Продолжайте заботиться о себе',
+          color: Colors.success,
+          icon: 'sentiment-very-satisfied',
+        };
+      case 'needs_attention':
+        return {
+          message: 'Возможно, стоит обратить внимание на своё самочувствие',
+          color: Colors.warning,
+          icon: 'psychology',
+        };
+      default:
+        return {
+          message: 'Ваше эмоциональное состояние стабильно',
+          color: Colors.info,
+          icon: 'sentiment-satisfied',
+        };
+    }
+  };
+
+  const trendInfo = getMoodTrendMessage();
+  const statCards = generateStatCards();
+
   return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <Text style={styles.title}>Your Progress</Text>
-      
-      <TimeRangeSelector />
-      
-      <View style={styles.statsGrid}>
-        <StatCard
-          title="Entries"
-          value={analytics.totalEntries}
-          subtitle={`${analytics.completionRate}% complete`}
-          icon="calendar"
-        />
-        
-        <StatCard
-          title="Avg Mood"
-          value={analytics.averageMood}
-          subtitle="out of 10"
-          icon="happy"
-          color="#4CAF50"
-        />
-        
-        <StatCard
-          title="Streak"
-          value={analytics.streakDays}
-          subtitle="days"
-          icon="flame"
-          color="#FF9800"
-        />
-        
-        <StatCard
-          title="Trend"
-          value={<MoodTrendIndicator />}
-          icon="analytics"
-          color="#9C27B0"
-        />
-      </View>
-
-      {analytics.topEmotion && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Most Common Emotion</Text>
-          <View style={styles.emotionCard}>
-            <Text style={styles.emotionEmoji}>{analytics.topEmotion.emoji}</Text>
-            <Text style={styles.emotionLabel}>{analytics.topEmotion.label}</Text>
-          </View>
-        </View>
-      )}
-
-      {analytics.topActivity && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Activity</Text>
-          <View style={styles.activityCard}>
-            <Text style={styles.activityIcon}>{analytics.topActivity.icon}</Text>
-            <Text style={styles.activityLabel}>{analytics.topActivity.name}</Text>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Insights</Text>
-        {analytics.totalEntries > 0 ? (
-          <>
-            <View style={styles.insightCard}>
-              <Ionicons name="bulb" size={20} color="#FFD700" />
-              <Text style={styles.insightText}>
-                {analytics.moodTrend === 'improving' 
-                  ? "You're on a great streak! Keep up the good work."
-                  : analytics.moodTrend === 'declining'
-                  ? "Consider trying some new activities to boost your mood."
-                  : "Your mood has been stable. Try tracking more activities for better insights."
-                }
-              </Text>
-            </View>
-            
-            {analytics.completionRate < 50 && (
-              <View style={styles.insightCard}>
-                <Ionicons name="time" size={20} color="#2196F3" />
-                <Text style={styles.insightText}>
-                  Try to log your mood more regularly for better insights.
-                </Text>
-              </View>
-            )}
-          </>
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="analytics" size={48} color="#E0E0E0" />
-            <Text style={styles.emptyStateText}>No data yet</Text>
-            <Text style={styles.emptyStateSubtext}>
-              Start tracking your mood to see your progress here
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={[Colors.gradients.calm[0], Colors.gradients.calm[1]]}
+        style={styles.gradient}
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Заголовок */}
+          <View style={styles.header}>
+            <Text style={[Typography.heading2, styles.title]}>
+              Аналитика эмоций
+            </Text>
+            <Text style={[Typography.bodyMedium, styles.subtitle]}>
+              Понять себя — первый шаг к внутренней гармонии
             </Text>
           </View>
-        )}
-      </View>
-    </ScrollView>
+
+          {/* Переключатель периода */}
+          <View style={[CommonStyles.softCard, styles.rangeSelector]}>
+            <Text style={[Typography.heading3, styles.sectionTitle]}>
+              Период анализа
+            </Text>
+            <View style={styles.rangeButtons}>
+              {([
+                { key: 'week' as TimeRange, label: 'Неделя' },
+                { key: 'month' as TimeRange, label: 'Месяц' },
+                { key: 'year' as TimeRange, label: 'Год' },
+              ]).map(({ key, label }) => (
+                <Pressable
+                  key={key}
+                  style={[
+                    styles.rangeButton,
+                    selectedRange === key && styles.rangeButtonActive
+                  ]}
+                  onPress={() => setSelectedRange(key)}
+                >
+                  <Text style={[
+                    styles.rangeButtonText,
+                    selectedRange === key && styles.rangeButtonTextActive
+                  ]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Карточки статистики */}
+          <View style={styles.statsGrid}>
+            {statCards.map((card, index) => (
+              <View key={index} style={[CommonStyles.softCard, styles.statCard]}>
+                <View style={styles.statCardHeader}>
+                  <MaterialIcons 
+                    name={card.icon as any} 
+                    size={24} 
+                    color={card.color} 
+                  />
+                  <Text style={[Typography.heading3, { color: card.color }]}>
+                    {card.value}
+                  </Text>
+                </View>
+                <Text style={[Typography.bodyMedium, styles.statCardTitle]}>
+                  {card.title}
+                </Text>
+                {card.subtitle && (
+                  <Text style={[Typography.bodySmall, styles.statCardSubtitle]}>
+                    {card.subtitle}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+
+          {/* Анализ настроения */}
+          <View style={[CommonStyles.softCard, styles.moodTrendCard]}>
+            <View style={styles.moodTrendHeader}>
+              <MaterialIcons 
+                name={trendInfo.icon as any} 
+                size={32} 
+                color={trendInfo.color} 
+              />
+              <Text style={[Typography.heading3, styles.moodTrendTitle]}>
+                Анализ вашего состояния
+              </Text>
+            </View>
+            <Text style={[Typography.bodyLarge, { color: trendInfo.color }]}>
+              {trendInfo.message}
+            </Text>
+          </View>
+
+          {/* Топ активности */}
+          {stats.topActivities.length > 0 && (
+            <View style={[CommonStyles.softCard, styles.activitiesCard]}>
+              <Text style={[Typography.heading3, styles.sectionTitle]}>
+                Популярные активности
+              </Text>
+              <View style={styles.activitiesList}>
+                {stats.topActivities.map(({ activity, count }, index) => (
+                  <View key={activity} style={styles.activityItem}>
+                    <View style={styles.activityRank}>
+                      <Text style={styles.activityRankText}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <View style={styles.activityInfo}>
+                      <Text style={[Typography.bodyMedium, styles.activityName]}>
+                        {activity}
+                      </Text>
+                      <Text style={[Typography.bodySmall, styles.activityCount]}>
+                        {count} {count === 1 ? 'раз' : 'раза'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Мотивирующее сообщение */}
+          <View style={[CommonStyles.softCard, styles.motivationCard]}>
+            <MaterialIcons name="favorite" size={24} color={Colors.secondary} />
+            <Text style={[Typography.bodyMedium, styles.motivationText]}>
+              Каждый день — это новая возможность позаботиться о себе. 
+              Вы уже сделали важный шаг, начав отслеживать свои эмоции! 💜
+            </Text>
+          </View>
+        </ScrollView>
+      </LinearGradient>
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
+    backgroundColor: Colors.background,
+  },
+  gradient: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+    color: Colors.text,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
+  subtitle: {
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    paddingHorizontal: Spacing.md,
   },
-  statCard: {
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-    borderRadius: 12,
-    width: '48%',
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#7C4DFF',
-  },
-  statLabel: {
-    marginTop: 5,
-    color: '#666',
-  },
-  section: {
-    marginBottom: 30,
+  rangeSelector: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 15,
-    color: '#333',
+    marginBottom: Spacing.md,
+    color: Colors.text,
   },
-  placeholder: {
-    backgroundColor: '#f5f5f5',
-    height: 200,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: '#666',
-  },
-  insightCard: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  insightText: {
-    color: '#333',
-    fontSize: 16,
-  },
-  timeRangeContainer: {
+  rangeButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    gap: Spacing.sm,
   },
-  timeRangeButton: {
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#7C4DFF',
-    borderRadius: 5,
+  rangeButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.backgroundSoft,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.border,
   },
-  timeRangeButtonActive: {
-    backgroundColor: '#7C4DFF',
+  rangeButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  timeRangeText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#7C4DFF',
+  rangeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.textSecondary,
   },
-  timeRangeTextActive: {
-    color: '#fff',
+  rangeButtonTextActive: {
+    color: Colors.backgroundCard,
+    fontWeight: '600',
   },
   statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
-  statHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  statTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  statSubtitle: {
-    color: '#666',
-  },
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trendText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  emotionCard: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  emotionEmoji: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  emotionLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  activityCard: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  activityIcon: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  activityLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyState: {
+  statCard: {
     flex: 1,
-    justifyContent: 'center',
+    minWidth: (width - Spacing.lg * 2 - Spacing.md) / 2,
     alignItems: 'center',
   },
-  emptyStateText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  statCardHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   },
-  emptyStateSubtext: {
-    color: '#666',
+  statCardTitle: {
+    textAlign: 'center',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  statCardSubtitle: {
+    textAlign: 'center',
+    color: Colors.textLight,
+  },
+  moodTrendCard: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  moodTrendHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  moodTrendTitle: {
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+    color: Colors.text,
+  },
+  activitiesCard: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  activitiesList: {
+    gap: Spacing.md,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  activityRank: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  activityRankText: {
+    color: Colors.backgroundCard,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityName: {
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  activityCount: {
+    color: Colors.textLight,
+  },
+  motivationCard: {
+    marginHorizontal: Spacing.lg,
+    alignItems: 'center',
+    backgroundColor: Colors.therapy.care,
+  },
+  motivationText: {
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
 }); 

@@ -15,6 +15,7 @@ type MoodAction =
 
 interface MoodContextType {
   state: MoodState;
+  dispatch: React.Dispatch<MoodAction>;
   addEntry: (entry: MoodEntry) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -81,6 +82,7 @@ export function MoodProvider({ children }: { children: ReactNode }) {
 
   const value: MoodContextType = {
     state,
+    dispatch,
     addEntry,
     setLoading,
     setError,

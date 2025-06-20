@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -11,17 +10,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMood } from '../context/MoodContext';
+import { useAuth } from '../context/AuthContext';
 
-type ProfileTab = 'auth' | 'settings' | 'data';
+type ProfileTab = 'account' | 'settings' | 'data';
 
 export const ProfileScreen = () => {
   const { state } = useMood();
-  const [activeTab, setActiveTab] = useState<ProfileTab>('auth');
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState('');
+  const { state: authState, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState<ProfileTab>('account');
   
   // Settings
   const [notifications, setNotifications] = useState(true);
@@ -29,33 +25,16 @@ export const ProfileScreen = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [dataSync, setDataSync] = useState(false);
 
-  const handleAuth = () => {
-    if (!email || !password) {
-      Alert.alert('Missing Information', 'Please fill in all fields');
-      return;
-    }
-    
-    // Simulate authentication
-    setIsLoggedIn(true);
-    setUserName(email.split('@')[0]);
-    Alert.alert('Success', isLogin ? 'Logged in successfully!' : 'Account created successfully!');
-  };
-
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      'Выйти из аккаунта',
+      'Вы уверены, что хотите выйти?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Отмена', style: 'cancel' },
         { 
-          text: 'Logout', 
+          text: 'Выйти', 
           style: 'destructive',
-          onPress: () => {
-            setIsLoggedIn(false);
-            setUserName('');
-            setEmail('');
-            setPassword('');
-          }
+          onPress: logout
         }
       ]
     );
@@ -63,15 +42,15 @@ export const ProfileScreen = () => {
 
   const handleExportData = () => {
     Alert.alert(
-      'Export Data',
-      `You have ${state.entries.length} mood entries. Export as JSON?`,
+      'Экспорт данных',
+      `У вас ${state.entries.length} записей настроения. Экспортировать как JSON?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Отмена', style: 'cancel' },
         { 
-          text: 'Export', 
+          text: 'Экспорт', 
           onPress: () => {
             console.log('Exporting data:', state.entries);
-            Alert.alert('Success', 'Data exported successfully!');
+            Alert.alert('Успешно', 'Данные экспортированы!');
           }
         }
       ]
@@ -80,16 +59,15 @@ export const ProfileScreen = () => {
 
   const handleClearData = () => {
     Alert.alert(
-      'Clear All Data',
-      'This will permanently delete all your mood entries. This action cannot be undone.',
+      'Очистить все данные',
+      'Это навсегда удалит все ваши записи о настроении. Действие нельзя отменить.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Отмена', style: 'cancel' },
         { 
-          text: 'Delete All', 
+          text: 'Удалить все', 
           style: 'destructive',
           onPress: () => {
-            // Here you would clear the data from context
-            Alert.alert('Success', 'All data cleared successfully!');
+            Alert.alert('Успешно', 'Все данные очищены!');
           }
         }
       ]
@@ -153,92 +131,72 @@ export const ProfileScreen = () => {
     </View>
   );
 
-  const renderAuthContent = () => (
+  const renderAccountContent = () => (
     <View style={styles.tabContent}>
-      {isLoggedIn ? (
-        <View style={styles.userInfo}>
-          <View style={styles.userAvatar}>
-            <Ionicons name="person" size={48} color="#7C4DFF" />
+      <View style={styles.userInfo}>
+        <View style={styles.userAvatar}>
+          <Ionicons name="person" size={48} color="#7C4DFF" />
+        </View>
+        <Text style={styles.userName}>{authState.user?.name || 'Пользователь'}</Text>
+        <Text style={styles.userEmail}>{authState.user?.email || 'email@example.com'}</Text>
+        
+        <View style={styles.userStats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{state.entries.length}</Text>
+            <Text style={styles.statLabel}>Записей</Text>
           </View>
-          <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.userEmail}>{email}</Text>
-          
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View>
-          <Text style={styles.authTitle}>
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TouchableOpacity style={styles.authButton} onPress={handleAuth}>
-            <Text style={styles.authButtonText}>
-              {isLogin ? 'Sign In' : 'Sign Up'}
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>
+              {new Date(authState.user?.createdAt || Date.now()).toLocaleDateString('ru-RU')}
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.switchAuthButton}
-            onPress={() => setIsLogin(!isLogin)}
-          >
-            <Text style={styles.switchAuthButtonText}>
-              {isLogin ? 'Need an account? Sign Up' : 'Have an account? Sign In'}
-            </Text>
-          </TouchableOpacity>
+            <Text style={styles.statLabel}>Регистрация</Text>
+          </View>
         </View>
-      )}
+        
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#E74C3C" />
+          <Text style={styles.logoutButtonText}>Выйти из аккаунта</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   const renderSettingsContent = () => (
     <View style={styles.tabContent}>
+      <Text style={styles.sectionTitle}>Уведомления</Text>
+      
       <SettingItem
-        title="Push Notifications"
-        subtitle="Get notified about mood tracking reminders"
-        icon="notifications"
+        title="Push-уведомления"
+        subtitle="Получать уведомления о напоминаниях"
+        icon="notifications-outline"
         value={notifications}
         onToggle={setNotifications}
       />
       
       <SettingItem
-        title="Daily Reminders"
-        subtitle="Remind me to track my mood daily"
-        icon="time"
+        title="Напоминания"
+        subtitle="Ежедневные напоминания записать настроение"
+        icon="alarm-outline"
         value={reminders}
         onToggle={setReminders}
       />
+
+      <Text style={styles.sectionTitle}>Интерфейс</Text>
       
       <SettingItem
-        title="Dark Mode"
-        subtitle="Use dark theme"
-        icon="moon"
+        title="Темная тема"
+        subtitle="Включить темный режим интерфейса"
+        icon="moon-outline"
         value={darkMode}
         onToggle={setDarkMode}
       />
+
+      <Text style={styles.sectionTitle}>Данные</Text>
       
       <SettingItem
-        title="Cloud Sync"
-        subtitle="Sync data across devices"
-        icon="cloud"
+        title="Синхронизация"
+        subtitle="Автоматическая синхронизация с облаком"
+        icon="cloud-outline"
         value={dataSync}
         onToggle={setDataSync}
       />
@@ -247,153 +205,199 @@ export const ProfileScreen = () => {
 
   const renderDataContent = () => (
     <View style={styles.tabContent}>
+      <Text style={styles.sectionTitle}>Управление данными</Text>
+      
       <View style={styles.dataStats}>
-        <Text style={styles.dataStatsTitle}>Your Data</Text>
-        <Text style={styles.dataStatsText}>
-          Total Entries: {state.entries.length}
-        </Text>
-        <Text style={styles.dataStatsText}>
-          Storage Used: {(state.entries.length * 0.5).toFixed(1)} KB
-        </Text>
+        <View style={styles.dataStatItem}>
+          <Ionicons name="happy-outline" size={32} color="#4CAF50" />
+          <Text style={styles.dataStatNumber}>{state.entries.length}</Text>
+          <Text style={styles.dataStatLabel}>Записей настроения</Text>
+        </View>
+        
+        <View style={styles.dataStatItem}>
+          <Ionicons name="calendar-outline" size={32} color="#2196F3" />
+          <Text style={styles.dataStatNumber}>
+            {state.entries.length > 0 ? 
+              Math.max(1, Math.ceil((Date.now() - new Date(state.entries[state.entries.length - 1]?.timestamp || Date.now()).getTime()) / (1000 * 60 * 60 * 24))) 
+              : 0
+            }
+          </Text>
+          <Text style={styles.dataStatLabel}>Дней отслеживания</Text>
+        </View>
       </View>
 
-      <TouchableOpacity style={styles.dataButton} onPress={handleExportData}>
-        <Ionicons name="download" size={20} color="#7C4DFF" />
-        <Text style={styles.dataButtonText}>Export Data</Text>
-      </TouchableOpacity>
+      <View style={styles.dataActions}>
+        <TouchableOpacity style={styles.exportButton} onPress={handleExportData}>
+          <Ionicons name="download-outline" size={20} color="#2196F3" />
+          <Text style={styles.exportButtonText}>Экспорт данных</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={[styles.dataButton, styles.dangerButton]} 
-        onPress={handleClearData}
-      >
-        <Ionicons name="trash" size={20} color="#F44336" />
-        <Text style={[styles.dataButtonText, styles.dangerButtonText]}>
-          Clear All Data
-        </Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.clearButton} onPress={handleClearData}>
+          <Ionicons name="trash-outline" size={20} color="#E74C3C" />
+          <Text style={styles.clearButtonText}>Очистить все данные</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.dataInfo}>
+        Ваши данные хранятся локально на устройстве и не передаются третьим лицам. 
+        Вы можете экспортировать их в любое время или полностью удалить.
+      </Text>
     </View>
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
-
-      <View style={styles.tabBar}>
-        <TabButton tab="auth" title="Account" icon="person" />
-        <TabButton tab="settings" title="Settings" icon="settings" />
-        <TabButton tab="data" title="Data" icon="folder" />
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Профиль</Text>
       </View>
 
-      {activeTab === 'auth' && renderAuthContent()}
-      {activeTab === 'settings' && renderSettingsContent()}
-      {activeTab === 'data' && renderDataContent()}
-    </ScrollView>
+      <View style={styles.tabs}>
+        <TabButton tab="account" title="Аккаунт" icon="person-outline" />
+        <TabButton tab="settings" title="Настройки" icon="settings-outline" />
+        <TabButton tab="data" title="Данные" icon="bar-chart-outline" />
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {activeTab === 'account' && renderAccountContent()}
+        {activeTab === 'settings' && renderSettingsContent()}
+        {activeTab === 'data' && renderDataContent()}
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
+    backgroundColor: '#f8f9ff',
+  },
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
     color: '#333',
   },
-  tabBar: {
+  tabs: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    backgroundColor: 'white',
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   tabButton: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 10,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 4,
+    borderRadius: 8,
   },
   tabButtonActive: {
-    backgroundColor: '#7C4DFF',
+    backgroundColor: '#f0f4ff',
   },
   tabButtonText: {
-    color: '#666',
+    marginLeft: 8,
     fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
   tabButtonTextActive: {
-    color: '#fff',
+    color: '#7C4DFF',
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
   },
   tabContent: {
     padding: 20,
   },
   userInfo: {
     alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
   },
   userAvatar: {
-    backgroundColor: '#f5f5f5',
-    padding: 10,
-    borderRadius: 50,
-    marginBottom: 10,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f0f4ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  userEmail: {
-    color: '#666',
-  },
-  logoutButton: {
-    backgroundColor: '#7C4DFF',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  authTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
     color: '#333',
+    marginBottom: 4,
   },
-  input: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
+  userEmail: {
     fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
   },
-  authButton: {
-    backgroundColor: '#7C4DFF',
-    padding: 15,
-    borderRadius: 8,
+  userStats: {
+    flexDirection: 'row',
+    width: '100%',
+    marginBottom: 24,
+  },
+  statItem: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: 10,
   },
-  authButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  statNumber: {
+    fontSize: 20,
     fontWeight: 'bold',
-  },
-  switchAuthButton: {
-    marginTop: 15,
-    alignItems: 'center',
-  },
-  switchAuthButtonText: {
     color: '#7C4DFF',
-    fontSize: 14,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff5f5',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffebee',
+  },
+  logoutButtonText: {
+    marginLeft: 8,
+    color: '#E74C3C',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    marginTop: 8,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
   },
   settingLeft: {
     flexDirection: 'row',
@@ -401,43 +405,86 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingText: {
-    marginLeft: 10,
+    marginLeft: 12,
+    flex: 1,
   },
   settingTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    color: '#333',
+    fontWeight: '500',
   },
   settingSubtitle: {
+    fontSize: 14,
     color: '#666',
+    marginTop: 2,
   },
   dataStats: {
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  dataStatItem: {
+    flex: 1,
     alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    marginHorizontal: 4,
+  },
+  dataStatNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+  },
+  dataStatLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  dataActions: {
     marginBottom: 20,
   },
-  dataStatsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  dataStatsText: {
-    color: '#666',
-  },
-  dataButton: {
-    backgroundColor: '#7C4DFF',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
+  exportButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2196F3',
   },
-  dataButtonText: {
-    color: '#fff',
+  exportButtonText: {
+    marginLeft: 8,
+    color: '#2196F3',
     fontSize: 16,
-    marginLeft: 10,
+    fontWeight: '500',
   },
-  dangerButton: {
-    backgroundColor: '#F44336',
+  clearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff5f5',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ffebee',
   },
-  dangerButtonText: {
-    color: '#fff',
+  clearButtonText: {
+    marginLeft: 8,
+    color: '#E74C3C',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  dataInfo: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    textAlign: 'center',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
   },
 }); 

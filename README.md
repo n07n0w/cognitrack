@@ -63,13 +63,26 @@ npm run check-db
 npm start
 ```
 
+### 🔐 Authentication System
+
+Приложение теперь начинается с экрана входа/регистрации:
+
+1. **Первый запуск**: Экран регистрации/входа
+2. **Демо-аккаунт**: Используйте любой email и пароль (мин. 6 символов)
+3. **Соглашения**: Встроенные ссылки на политику конфиденциальности
+4. **Автоматический вход**: Состояние сохраняется между сессиями
+
+Для выхода из аккаунта: **Профиль** → **Аккаунт** → **Выйти из аккаунта**
+
 ## 📱 Features
-- Mood tracking with intensity levels
-- Activity correlation analysis  
-- Gratitude journaling
-- Analytics and insights
-- Data export capabilities
-- Privacy controls
+- 🔐 **User authentication** with login/registration
+- 📝 **Mood tracking** with intensity levels
+- 📊 **Activity correlation** analysis  
+- 🙏 **Gratitude journaling**
+- 📈 **Analytics and insights**
+- 💾 **Data export** capabilities
+- 🔒 **Privacy controls** and agreements
+- 👤 **User profile** management
 
 ## 🛠 Tech Stack
 - React Native + Expo

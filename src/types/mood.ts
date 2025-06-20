@@ -14,21 +14,20 @@ export interface ActivityTag {
 
 export interface MoodEntry {
   id: string;
-  timestamp: string;
-  emotion: Emotion;
+  date: string;
+  emotion: string;
   intensity: number;
-  journalText: string;
-  activities: ActivityTag[];
-  gratitude: string[];
-  isPrivate: boolean;
+  note: string;
+  activities: string[];
+  gratitude?: string;
 }
 
 export type MoodTrend = {
   date: string;
   averageMood: number;
-  dominantEmotion: Emotion;
+  dominantEmotion: string;
   activityCorrelations: {
-    activity: ActivityTag;
+    activity: string;
     correlation: number;
   }[];
 }; 
