@@ -30,10 +30,6 @@
         "projectId": "a3914d49-193b-452b-a675-08e2d40cd619"
       }
     },
-    "cli": {
-      "appVersionSource": "remote"
-    },
-    "entryPoint": "./App.tsx",
     "owner": "n07n0w"
   }
 }
